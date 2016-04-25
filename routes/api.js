@@ -1,5 +1,50 @@
+'use strict';
+// mongodb://heroku_trpxn9mq:a9gpkpuhc3o31ltj9dqlusfuvq@ds019491.mlab.com:19491/heroku_trpxn9mq
 var express = require('express');
 var router = express.Router();
+
+var mongoose = require('mongoose');
+mongoose.connect('mongodb://heroku_trpxn9mq:a9gpkpuhc3o31ltj9dqlusfuvq@ds019491.mlab.com:19491/heroku_trpxn9mq/quiz');
+var db = mongoose.connection;
+db.on('error', console.error.bind(console, 'connection error:'));
+db.once('open', function () {
+  console.log("********************************* We're in!");
+
+  var choiceSchema = mongoose.Schema({
+    choice: String,
+    isAnswer: Boolean
+  });
+
+  var questionSchema = mongoose.Schema({
+    question: String,
+    choices: [choiceSchema]
+  });
+
+  var quizListSchema = mongoose.Schema({
+    title: String,
+    tagLine: String,
+    added: String,
+    rating: Number,
+    _id: "ObjectId",
+    tags: [String],
+    quiz: {
+      questions: [questionSchema]
+    }
+  });
+
+  var quizSchema = mongoose.Schema({
+    quiz: [quizListSchema]
+  })
+
+  var quizList = mongoose.model('quizList', quizListSchema);
+  quizList.find(function (err, quiz) {
+    if (err) return console.error(err);
+    console.log('******* HELLO: ' + JSON.stringify(quiz));
+  })
+
+  console.log("********************************* pass all of the db code ");
+});
+
 
 const quizList =
   [
@@ -370,9 +415,23 @@ const quizList =
   ];
 
 /* GET api listing. */
-router.get('/quizzes', function(req, res, next) {
-//  res.send('api says hello');
+router.get('/quizzes', function (req, res, next) {
   res.json(quizList);
+});
+
+router.get('/quiz/:id', function (req, res, next) {
+  console.log(`${req.params.id}`);
+  let id = +req.params.id;
+  let results = {};
+
+  for (let quiz of quizList) {
+    if (quiz._id === id) {
+      results = quiz;
+      break;
+    }
+  }
+
+  res.json(results);
 });
 
 module.exports = router;

@@ -1,4 +1,4 @@
-System.register(['angular2/core', './quiz-service', 'angular2/router'], function(exports_1, context_1) {
+System.register(['angular2/core', './quiz-service', 'angular2/router', 'angular2/http'], function(exports_1, context_1) {
     "use strict";
     var __moduleName = context_1 && context_1.id;
     var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
@@ -10,7 +10,7 @@ System.register(['angular2/core', './quiz-service', 'angular2/router'], function
     var __metadata = (this && this.__metadata) || function (k, v) {
         if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
     };
-    var core_1, quiz_service_1, router_1;
+    var core_1, quiz_service_1, router_1, http_1;
     var QuizComponent;
     return {
         setters:[
@@ -22,24 +22,29 @@ System.register(['angular2/core', './quiz-service', 'angular2/router'], function
             },
             function (router_1_1) {
                 router_1 = router_1_1;
+            },
+            function (http_1_1) {
+                http_1 = http_1_1;
             }],
         execute: function() {
             QuizComponent = (function () {
                 function QuizComponent(_quizService) {
                     this._quizService = _quizService;
+                    this.quizList = [];
                 }
                 QuizComponent.prototype.ngOnInit = function () {
                     this.getQuiz();
                 };
                 QuizComponent.prototype.getQuiz = function () {
-                    this.quizList = this._quizService.getQuizzes();
+                    var _this = this;
+                    this._quizService.getQuizzes().then(function (quiz) { _this.quizList = quiz; }, function (error) { return console.log(error); });
                 };
                 QuizComponent = __decorate([
                     core_1.Component({
                         selector: 'quiz',
                         templateUrl: './templates/quiz.html',
-                        providers: [quiz_service_1.QuizService],
-                        directives: [router_1.ROUTER_DIRECTIVES]
+                        directives: [router_1.ROUTER_DIRECTIVES],
+                        providers: [quiz_service_1.QuizService, http_1.HTTP_PROVIDERS]
                     }), 
                     __metadata('design:paramtypes', [quiz_service_1.QuizService])
                 ], QuizComponent);

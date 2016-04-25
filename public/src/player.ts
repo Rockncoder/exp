@@ -2,6 +2,8 @@ import {Component, OnInit} from 'angular2/core'
 import {Location, RouteParams, ROUTER_DIRECTIVES, ROUTER_PROVIDERS} from 'angular2/router'
 import {QuizService} from './quiz-service'
 import {Seek} from './Seek'
+import {Http, HTTP_PROVIDERS} from 'angular2/http';
+
 
 // an internal class
 class Position {
@@ -47,25 +49,29 @@ class Position {
   selector: 'player',
   templateUrl: './templates/player.html',
   directives: [ROUTER_DIRECTIVES],
-  providers: [QuizService, ROUTER_PROVIDERS]
+  providers: [HTTP_PROVIDERS, QuizService, ROUTER_PROVIDERS]
 })
 
 export class PlayerComponent implements OnInit {
   questions:IQuizList;
-  answers:Array<boolean[]> = [];  //boolean[][]
+  answers:Array<boolean[]> = [];
   position:Position;
   player:any;
   showAnswers:boolean = false;
   index = 0;
-  total = 10;
+  total = 0;
   right = 0;
   percent = 0;
   responses = [];
   title = "";
   tagLine = "";
-  current:IQuestion;
+  // start with an empty question
+  current:IQuestion = {
+    question: "",
+    choices: []
+  };
 
-  constructor(private _quizService:QuizService, private _location:Location, private _routeParams: RouteParams) {
+  constructor(private _quizService:QuizService, private _location:Location, private _routeParams:RouteParams) {
     this.position = new Position();
   }
 
@@ -75,18 +81,25 @@ export class PlayerComponent implements OnInit {
 
   getQuiz() {
     let id = +this._routeParams.get('id');
-    let data = this._quizService.getQuiz(id);
-    this.questions = data;
-    this.title = data.title;
-    this.tagLine = data.tagLine;
-    this.current = data.quiz.questions[0];
-    this.total = data.quiz.questions.length;
+    // Remember: a promise is being returned from the service now
+    this._quizService.getQuiz(id)
+      .then(
+        // if the promise was resolved (aka successful)
+        (data) => {
+          console.info(`Received data from service: ${JSON.stringify(data)}`);
+          this.questions = data;
+          this.title = data.title;
+          this.tagLine = data.tagLine;
+          this.current = data.quiz.questions[0];
+          this.total = data.quiz.questions.length;
 
-    this.position.setMax(data.quiz.questions.length);
-    this.position.seek(Seek.Beginning);
-    this.seekToQuestion(Seek.Beginning);
-
-    console.info(`Received data from service: ${data.quiz.questions.length}`);
+          this.position.setMax(data.quiz.questions.length);
+          this.position.seek(Seek.Beginning);
+          this.seekToQuestion(Seek.Beginning);
+        },
+        // if the promise was rejected (aka failed)
+        (error)=>console.log(error)
+      );
   }
 
   getPlayerResponses(response:Array<boolean>, question:IChoice[]):boolean[] {
@@ -108,12 +121,12 @@ export class PlayerComponent implements OnInit {
     }
 
     this.position.seek(direction);
-
+    let pos = this.position.getPosition();
     // get the current questions from the quiz
-    this.current = this.questions.quiz.questions[this.position.getPosition()];
+    this.current = this.questions.quiz.questions[pos];
     // restore previous answer if one exists
-    this.responses = (this.answers[this.position.getPosition()]) ? this.answers[this.position.getPosition()] : [];
-    this.index = this.position.getPosition();
+    this.responses = (this.answers[pos]) ? this.answers[pos] : [];
+    this.index = pos;
   }
 
   // does the actual scoring
@@ -124,21 +137,11 @@ export class PlayerComponent implements OnInit {
     // loop thru all of the responses & compare them to the answers
     for (outer = 0; outer < this.total; outer += 1) {
       let inner:number;
-      let correct = false;
+      let correct;
       let question = this.questions.quiz.questions[outer].choices.map((choice:IChoice) => !!choice.isAnswer);
       let answer = this.answers[outer];
 
-      // were there an answer for the current question?
-      if (answer) {
-        // default to the player answering correctly
-        correct = true;
-        for (inner = 0; inner < answer.length; inner += 1) {
-          if (question[inner] != answer[inner]) {
-            correct = false;
-            break;
-          }
-        }
-      }
+      correct = answer && question.every((val, index) => val === answer[index]);
       right += (correct ? 1 : 0);
       console.info(`question ${outer} = ${(correct ? 'right' : 'wrong')}`);
     }
@@ -162,4 +165,21 @@ export class PlayerComponent implements OnInit {
   // reset the path back to the beginning
   exit = () => window.history.back();
 }
+
+
+// was there an answer for the current question?
+// if (answer) {
+// default to the player answering correctly
+
+// correct = true;
+// for (inner = 0; inner < answer.length; inner += 1) {
+//   if (question[inner] != answer[inner]) {
+//     correct = false;
+//     break;
+//   }
+// }
+
+// we've replaced the code above with this more functional version
+// correct = answer && question.every((val, index) => val === answer[index]);
+// }
 

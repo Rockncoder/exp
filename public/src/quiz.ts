@@ -1,17 +1,18 @@
 import {Component, OnInit} from 'angular2/core'
 import {QuizService} from './quiz-service'
-import {RouteConfig, ROUTER_DIRECTIVES, ROUTER_PROVIDERS} from 'angular2/router'
+import {ROUTER_DIRECTIVES} from 'angular2/router'
+import {HTTP_PROVIDERS} from 'angular2/http';
 
 
 @Component({
   selector: 'quiz',
   templateUrl: './templates/quiz.html',
-  providers: [QuizService],
-  directives: [ROUTER_DIRECTIVES]
+  directives: [ROUTER_DIRECTIVES],
+  providers:[QuizService, HTTP_PROVIDERS]
 })
 
 export class QuizComponent implements OnInit {
-  quizList: IQuizList[];
+  quizList: IQuizList[] = [];
   
   constructor(private _quizService:QuizService) {
   }
@@ -21,7 +22,7 @@ export class QuizComponent implements OnInit {
   }
 
   getQuiz() {
-    this.quizList = this._quizService.getQuizzes();
+    this._quizService.getQuizzes().then((quiz) => { this.quizList = quiz}, (error)=>console.log(error));
   }
 }
 

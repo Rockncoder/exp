@@ -1,4 +1,4 @@
-System.register(['angular2/core', 'angular2/router', './quiz-service', './Seek'], function(exports_1, context_1) {
+System.register(['angular2/core', 'angular2/router', './quiz-service', './Seek', 'angular2/http'], function(exports_1, context_1) {
     "use strict";
     var __moduleName = context_1 && context_1.id;
     var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
@@ -10,7 +10,7 @@ System.register(['angular2/core', 'angular2/router', './quiz-service', './Seek']
     var __metadata = (this && this.__metadata) || function (k, v) {
         if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
     };
-    var core_1, router_1, quiz_service_1, Seek_1;
+    var core_1, router_1, quiz_service_1, Seek_1, http_1;
     var Position, PlayerComponent;
     return {
         setters:[
@@ -25,6 +25,9 @@ System.register(['angular2/core', 'angular2/router', './quiz-service', './Seek']
             },
             function (Seek_1_1) {
                 Seek_1 = Seek_1_1;
+            },
+            function (http_1_1) {
+                http_1 = http_1_1;
             }],
         execute: function() {
             // an internal class
@@ -66,15 +69,20 @@ System.register(['angular2/core', 'angular2/router', './quiz-service', './Seek']
                     this._quizService = _quizService;
                     this._location = _location;
                     this._routeParams = _routeParams;
-                    this.answers = []; //boolean[][]
+                    this.answers = [];
                     this.showAnswers = false;
                     this.index = 0;
-                    this.total = 10;
+                    this.total = 0;
                     this.right = 0;
                     this.percent = 0;
                     this.responses = [];
                     this.title = "";
                     this.tagLine = "";
+                    // start with an empty question
+                    this.current = {
+                        question: "",
+                        choices: []
+                    };
                     // the 'prev' button was clicked, move to previous question
                     this.previous = function () { return _this.seekToQuestion(Seek_1.Seek.Backward); };
                     // The 'next' button was clicked, move to the next question
@@ -94,17 +102,25 @@ System.register(['angular2/core', 'angular2/router', './quiz-service', './Seek']
                     this.getQuiz();
                 };
                 PlayerComponent.prototype.getQuiz = function () {
+                    var _this = this;
                     var id = +this._routeParams.get('id');
-                    var data = this._quizService.getQuiz(id);
-                    this.questions = data;
-                    this.title = data.title;
-                    this.tagLine = data.tagLine;
-                    this.current = data.quiz.questions[0];
-                    this.total = data.quiz.questions.length;
-                    this.position.setMax(data.quiz.questions.length);
-                    this.position.seek(Seek_1.Seek.Beginning);
-                    this.seekToQuestion(Seek_1.Seek.Beginning);
-                    console.info("Received data from service: " + data.quiz.questions.length);
+                    // Remember: a promise is being returned from the service now
+                    this._quizService.getQuiz(id)
+                        .then(
+                    // if the promise was resolved (aka successful)
+                    function (data) {
+                        console.info("Received data from service: " + JSON.stringify(data));
+                        _this.questions = data;
+                        _this.title = data.title;
+                        _this.tagLine = data.tagLine;
+                        _this.current = data.quiz.questions[0];
+                        _this.total = data.quiz.questions.length;
+                        _this.position.setMax(data.quiz.questions.length);
+                        _this.position.seek(Seek_1.Seek.Beginning);
+                        _this.seekToQuestion(Seek_1.Seek.Beginning);
+                    }, 
+                    // if the promise was rejected (aka failed)
+                    function (error) { return console.log(error); });
                 };
                 PlayerComponent.prototype.getPlayerResponses = function (response, question) {
                     var ndx;
@@ -122,35 +138,30 @@ System.register(['angular2/core', 'angular2/router', './quiz-service', './Seek']
                         this.answers[this.position.getPosition()] = this.getPlayerResponses(this.responses, this.current.choices);
                     }
                     this.position.seek(direction);
+                    var pos = this.position.getPosition();
                     // get the current questions from the quiz
-                    this.current = this.questions.quiz.questions[this.position.getPosition()];
+                    this.current = this.questions.quiz.questions[pos];
                     // restore previous answer if one exists
-                    this.responses = (this.answers[this.position.getPosition()]) ? this.answers[this.position.getPosition()] : [];
-                    this.index = this.position.getPosition();
+                    this.responses = (this.answers[pos]) ? this.answers[pos] : [];
+                    this.index = pos;
                 };
                 // does the actual scoring
                 PlayerComponent.prototype.tabulate = function () {
                     var outer;
                     var right = 0;
                     // loop thru all of the responses & compare them to the answers
-                    for (outer = 0; outer < this.total; outer += 1) {
+                    var _loop_1 = function() {
                         var inner = void 0;
-                        var correct = false;
-                        var question = this.questions.quiz.questions[outer].choices.map(function (choice) { return !!choice.isAnswer; });
-                        var answer = this.answers[outer];
-                        // were there an answer for the current question?
-                        if (answer) {
-                            // default to the player answering correctly
-                            correct = true;
-                            for (inner = 0; inner < answer.length; inner += 1) {
-                                if (question[inner] != answer[inner]) {
-                                    correct = false;
-                                    break;
-                                }
-                            }
-                        }
+                        var correct = void 0;
+                        var question = this_1.questions.quiz.questions[outer].choices.map(function (choice) { return !!choice.isAnswer; });
+                        var answer = this_1.answers[outer];
+                        correct = answer && question.every(function (val, index) { return val === answer[index]; });
                         right += (correct ? 1 : 0);
                         console.info("question " + outer + " = " + (correct ? 'right' : 'wrong'));
+                    };
+                    var this_1 = this;
+                    for (outer = 0; outer < this.total; outer += 1) {
+                        _loop_1();
                     }
                     return right;
                 };
@@ -159,7 +170,7 @@ System.register(['angular2/core', 'angular2/router', './quiz-service', './Seek']
                         selector: 'player',
                         templateUrl: './templates/player.html',
                         directives: [router_1.ROUTER_DIRECTIVES],
-                        providers: [quiz_service_1.QuizService, router_1.ROUTER_PROVIDERS]
+                        providers: [http_1.HTTP_PROVIDERS, quiz_service_1.QuizService, router_1.ROUTER_PROVIDERS]
                     }), 
                     __metadata('design:paramtypes', [quiz_service_1.QuizService, router_1.Location, router_1.RouteParams])
                 ], PlayerComponent);
@@ -169,4 +180,17 @@ System.register(['angular2/core', 'angular2/router', './quiz-service', './Seek']
         }
     }
 });
+// was there an answer for the current question?
+// if (answer) {
+// default to the player answering correctly
+// correct = true;
+// for (inner = 0; inner < answer.length; inner += 1) {
+//   if (question[inner] != answer[inner]) {
+//     correct = false;
+//     break;
+//   }
+// }
+// we've replaced the code above with this more functional version
+// correct = answer && question.every((val, index) => val === answer[index]);
+// }
 //# sourceMappingURL=player.js.map
